@@ -1,0 +1,15 @@
+{
+  "name": "babble-projectrtp",
+  "version": "1.0.0",
+  "description": "Control of projectrtp server(s), an RTP server, easily.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/test.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "sdp-transform": "^2.14.1"
+  }
+}
