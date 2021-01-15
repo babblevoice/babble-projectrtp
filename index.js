@@ -41,7 +41,7 @@ const codecdefs = {
   },
   "fmtp": {
     "ilbc": { payload: 97, config: "mode=20" },
-    "2833": { payload: 101, config: "0-16" }
+    "2833": { payload: 101, config: "0-16" } /* 0-16 = DTMF */
   }
 }
 
@@ -444,6 +444,11 @@ class ProjectRTP {
 
       sock.on( "data", ( data ) => {
 
+        if( 2 == state ) {
+          state = 0
+          return
+        }
+
         bodycache = Buffer.concat( [ bodycache, data ] )
 
         if( 0 === state ) {
@@ -453,9 +458,12 @@ class ProjectRTP {
           if( 0x33 == dataheader[ 0 ] ) {
             bodylength = ( dataheader[ 3 ] << 8 ) | dataheader[ 4 ]
             // We should do more checks here
+            state = 1
+          } else {
+            console.error( "ProjectRTP Bad Magic" )
+            state = 2
+            return
           }
-
-          state = 1
         }
 
         if( bodycache.length > 0 ) {
