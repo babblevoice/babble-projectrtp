@@ -21,21 +21,21 @@ the same server - otherwise we have to do all of the logic to send rtp between 2
 */
 var sessionidcounter = Math.floor( Math.random() * 100000 )
 
-const codecconv = { "0": "pcmu", "8": "pcma", "9": "722", "97": "ilbc", "101": "2833" }
-const codecrconv = { "pcmu": 0, "pcma": 8, "722": 9, "ilbc": 97, "2833": 101 }
+const codecconv = { "0": "pcmu", "8": "pcma", "9": "g722", "97": "ilbc", "101": "2833" }
+const codecrconv = { "pcmu": 0, "pcma": 8, "g722": 9, "ilbc": 97, "2833": 101 }
 
 const codecdefs = {
   "type": {
     "pcmu": "audio",
     "pcma": "audio",
-    "722": "audio",
+    "g722": "audio",
     "ilbc": "audio",
     "2833": "audio",
   },
   "rtp": {
     "pcmu": { payload: 0, codec: 'PCMU', rate: 8000 },
     "pcma": { payload: 8, codec: 'PCMA', rate: 8000 },
-    "722": { payload: 9, codec: 'G722', rate: 16000 },
+    "g722": { payload: 9, codec: 'G722', rate: 16000 },
     "ilbc": { payload: 97, codec: 'ilbc', rate: 8000 },
     "2833": { payload: 101, codec: 'telephone-event' }
   },
@@ -283,7 +283,15 @@ class sdpgen {
   }
 
   toString() {
-    return sdptransform.write( this.sdp ).trim()
+
+    /* We need to convert payloads back to string to stop a , being added */
+    let co = Object.assign( this.sdp )
+
+    co.media.forEach( ( media, i, a ) => {
+      a[ i ].payloads = media.payloads.join( " " )
+    } )
+
+    return sdptransform.write( co ).trim()
   }
 }
 
@@ -296,11 +304,16 @@ class projectrtpchannel {
     this.remotesdp = sdp
     this.id = crypto.randomBytes( 16 ).toString( "hex" )
     this.conn.channels.set( this.id, this )
-    this.uuid = ""
+    this.uuid = false
 
     this.state = 0
 
     this.em = new events.EventEmitter()
+
+    this.openresolve = false
+    this.openreject = false
+    this.closeresolve = false
+    this.closereject = false
   }
 
   open() {
@@ -329,6 +342,16 @@ class projectrtpchannel {
       "channel": "target",
       "uuid": this.uuid,
       "target": this.remotesdp.getaudioremote()
+    }
+
+    this.conn.send( msg )
+  }
+
+  rfc2833( pt ) {
+    let msg = {
+      "channel": "rfc2833",
+      "uuid": this.uuid,
+      "pt": pt
     }
 
     this.conn.send( msg )
@@ -370,25 +393,39 @@ class projectrtpchannel {
   }
 
   update( msg ) {
-    if( "" === this.uuid &&
-        "" != msg.uuid &&
-        "open" == msg.action ) {
-      this.local = {}
-      this.local.ip = msg.channel.ip
-      this.local.port = msg.channel.port
-      this.uuid = msg.channel.uuid
+    switch( msg.action ) {
 
-      this.openresolve( this )
+      case "open": {
+        if( false === this.uuid &&
+            undefined !== msg.channel.uuid ) {
+          this.local = {}
+          this.local.ip = msg.channel.ip
+          this.local.port = msg.channel.port
+          this.uuid = msg.channel.uuid
 
-    } else if( undefined !== msg.dtmf ) {
-      this.em.emit( "dtmf", msg.dtmf )
-    } else if( "close" == msg.action ) {
-      this.closeresolve( this )
-      this.conn.channels.delete( this.id )
+          this.openresolve( this )
+
+        }
+        break
+      }
+
+      case "telephone-event": {
+        this.em.emit( "telephone-event", msg.event )
+        break
+      }
+
+      case "close": {
+        if( false !== this.closeresolve ) {
+          this.closeresolve( this )
+        }
+
+        this.conn.channels.delete( this.id )
+        break
+      }
     }
   }
 
-
+  /* Add a timer? */
   destroy()
   {
     return new Promise( ( resolve, reject ) => {
