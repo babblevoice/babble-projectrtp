@@ -367,6 +367,16 @@ class projectrtpchannel {
     this.conn.send( msg )
   }
 
+  unmix() {
+
+    let msg = {
+      "channel": "unmix",
+      "uuid": this.uuid
+    }
+
+    this.conn.send( msg )
+  }
+
   play( soup ) {
 
     let msg = {
