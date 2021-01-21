@@ -1,6 +1,7 @@
 
 
 const s =  new require( "../index.js" ).sdp
+const projectrtp = require( "../index.js" ).ProjectRTP
 
 let test1 = `v=0
 o=Z 1608235282228 1 IN IP4 192.168.0.141
@@ -160,3 +161,47 @@ let chosen = remote.intersection( "g722 pcmu", true )
 if( "g722" !== chosen ) {
   throw "We should have found 722 but got " + chosen
 }
+
+
+/* The next tests require the projectrtp server to be running (or multiple) */
+const rtp = new projectrtp()
+
+console.log( "This next test opens multiple channels, one at once then 100 at once and should clean up ok" )
+console.log( "Waiting for new projectrtp connection - please start the server" )
+rtp.on( "connection", async ( conn ) => {
+
+  console.log( "Opening 100 one at once" )
+  for( let i = 0; i < 100; i ++ ) {
+
+    let channela = await rtp.channel( s.create( test4 ).select( "g722" ) )
+    channela.rfc2833( 101 )
+    channela.echo()
+
+    let channelb = await rtp.channel( s.create( test4 ).select( "g722" ) )
+    channelb.rfc2833( 101 )
+    channelb.echo()
+
+    await channelb.destroy()
+    await channela.destroy()
+  }
+
+  console.log( "opening 100 using Promise.all" )
+  let channelcollection = []
+  for( let i = 0; i < 100; i ++ ) {
+    channelcollection.push( rtp.channel( s.create( test4 ).select( "g722" ) ) )
+  }
+
+  let closechannelcollection = []
+  let openedchannels = await Promise.all( channelcollection )
+
+  console.log( "closing 100" )
+  openedchannels.forEach( ( chan ) => {
+    closechannelcollection.push( chan.destroy() )
+  } )
+
+  await Promise.all( closechannelcollection )
+
+  console.log( "Finished" )
+  rtp.close()
+
+} )

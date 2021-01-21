@@ -413,7 +413,7 @@ class projectrtpchannel {
           this.local.port = msg.channel.port
           this.uuid = msg.channel.uuid
 
-          this.openresolve( this )
+          if( false !== this.openresolve ) this.openresolve( this )
 
         }
         break
@@ -425,9 +425,7 @@ class projectrtpchannel {
       }
 
       case "close": {
-        if( false !== this.closeresolve ) {
-          this.closeresolve( this )
-        }
+        if( false !== this.closeresolve ) this.closeresolve( this )
 
         this.conn.channels.delete( this.id )
         break
@@ -498,32 +496,38 @@ class ProjectRTP {
 
         bodycache = Buffer.concat( [ bodycache, data ] )
 
-        if( 0 === state ) {
-          let dataheader = bodycache.slice( 0, 5 )
-          bodycache = bodycache.slice( 5 )
+        while( bodycache.length > 0 ) {
+          if( 0 === state ) {
+            let dataheader = bodycache.slice( 0, 5 )
+            bodycache = bodycache.slice( 5 )
 
-          if( 0x33 == dataheader[ 0 ] ) {
-            bodylength = ( dataheader[ 3 ] << 8 ) | dataheader[ 4 ]
-            // We should do more checks here
-            state = 1
-          } else {
-            console.error( "ProjectRTP Bad Magic" )
-            state = 2
-            return
+            if( 0x33 == dataheader[ 0 ] ) {
+              bodylength = ( dataheader[ 3 ] << 8 ) | dataheader[ 4 ]
+              // We should do more checks here
+              state = 1
+            } else {
+              console.error( "ProjectRTP Bad Magic" )
+              state = 2
+              return
+            }
           }
-        }
 
-        if( bodycache.length > 0 ) {
-          if( bodycache.length >= bodylength ) {
-            state = 0
-            let msgbody = bodycache.slice( 0, bodylength ).toString()
-            bodycache = bodycache.slice( bodylength )
+          if( bodycache.length > 0 ) {
 
-            let msg = JSON.parse( msgbody )
+            if( bodycache.length < bodylength ) {
+              return
+            } else {
+              state = 0
+              let msgbody = bodycache.slice( 0, bodylength ).toString()
+              // so that we simpy just don't index the old full buffer which grows and grows
+              bodycache = new Buffer.from( bodycache.slice( bodylength ) )
 
-            let chann = this.channels.get( msg.id )
-            if( undefined !== chann ) {
-              chann.update( msg )
+              let msg = JSON.parse( msgbody )
+
+              let chann = this.channels.get( msg.id )
+              if( undefined !== chann ) {
+                chann.update( msg )
+              }
             }
           }
         }
@@ -559,6 +563,13 @@ class ProjectRTP {
     return channel.open()
   }
 
+  close() {
+    this.server.close()
+
+    this.connections.forEach( ( conn, key, map ) => {
+      conn.sock.destroy()
+    } )
+  }
 };
 
 module.exports.ProjectRTP = ProjectRTP
