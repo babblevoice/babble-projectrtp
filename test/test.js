@@ -170,7 +170,8 @@ console.log( "This next test opens multiple channels, one at once then 100 at on
 console.log( "Waiting for new projectrtp connection - please start the server" )
 rtp.on( "connection", async ( conn ) => {
 
-  console.log( "Opening 100 one at once" )
+
+  console.log( "Opening 100 one at a time" )
   for( let i = 0; i < 100; i ++ ) {
 
     let channela = await rtp.channel( s.create( test4 ).select( "g722" ) )
@@ -191,15 +192,32 @@ rtp.on( "connection", async ( conn ) => {
     channelcollection.push( rtp.channel( s.create( test4 ).select( "g722" ) ) )
   }
 
-  let closechannelcollection = []
   let openedchannels = await Promise.all( channelcollection )
 
   console.log( "closing 100" )
+  let closechannelcollection = []
   openedchannels.forEach( ( chan ) => {
     closechannelcollection.push( chan.destroy() )
   } )
 
   await Promise.all( closechannelcollection )
+
+  console.log( "Opening one to ensure it times out and closes" )
+  let channela = await rtp.channel( s.create( test4 ).select( "g722" ) )
+  let closed = false
+  let channelconn = channela.conn
+
+  channela.on( "close", ( m ) => { closed = true } )
+  await new Promise(resolve => setTimeout( resolve, 10000 ) )
+
+  if( !closed ) {
+    throw "The channel did not close through inactivity"
+  }
+
+
+  if( 0 !== channelconn.status.channels.active ) {
+    throw `Uh oh, we still have ${channelconn.status.channels.active} channels open - please run these tests after restarting projectrtp with no other connections`
+  }
 
   console.log( "Finished" )
   rtp.close()

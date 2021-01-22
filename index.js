@@ -402,10 +402,26 @@ class projectrtpchannel {
     this.em.on( event, cb )
   }
 
+  /* is currently opened */
+  get isopen() {
+    return this.state >= 2
+  }
+
+  /* has it been/is it closed */
+  get isclosed() {
+    return this.state === 3
+  }
+
   update( msg ) {
+
+    if( undefined !== msg.status ) {
+      this.conn.status = msg.status
+    }
+
     switch( msg.action ) {
 
       case "open": {
+        this.state = 2
         if( false === this.uuid &&
             undefined !== msg.channel.uuid ) {
           this.local = {}
@@ -413,6 +429,7 @@ class projectrtpchannel {
           this.local.port = msg.channel.port
           this.uuid = msg.channel.uuid
 
+          this.em.emit( "open", msg )
           if( false !== this.openresolve ) this.openresolve( this )
 
         }
@@ -425,9 +442,10 @@ class projectrtpchannel {
       }
 
       case "close": {
+        this.em.emit( "close", msg )
         if( false !== this.closeresolve ) this.closeresolve( this )
-
         this.conn.channels.delete( this.id )
+        this.state = 3
         break
       }
     }
@@ -440,6 +458,12 @@ class projectrtpchannel {
       let msg = {
         "channel": "close",
         "uuid": this.uuid
+      }
+
+      /* Already closed */
+      if( 3 === this.state ) {
+        this.closereject( this )
+        return
       }
 
       this.closeresolve = resolve
