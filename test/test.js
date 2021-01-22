@@ -208,7 +208,7 @@ rtp.on( "connection", async ( conn ) => {
   let channelconn = channela.conn
 
   channela.on( "close", ( m ) => { closed = true } )
-  await new Promise(resolve => setTimeout( resolve, 10000 ) )
+  await new Promise( resolve => setTimeout( resolve, 10000 ) )
 
   if( !closed ) {
     throw "The channel did not close through inactivity"
