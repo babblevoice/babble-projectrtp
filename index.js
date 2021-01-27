@@ -452,8 +452,7 @@ class projectrtpchannel {
   }
 
   /* Add a timer? */
-  destroy()
-  {
+  destroy() {
     return new Promise( ( resolve, reject ) => {
       let msg = {
         "channel": "close",
