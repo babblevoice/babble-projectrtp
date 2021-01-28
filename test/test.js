@@ -215,7 +215,7 @@ rtp.on( "connection", async ( conn ) => {
   }
 
 
-  if( 0 !== channelconn.status.channels.active ) {
+  if( 0 !== channelconn.stats.active ) {
     throw `Uh oh, we still have ${channelconn.status.channels.active} channels open - please run these tests after restarting projectrtp with no other connections`
   }
 

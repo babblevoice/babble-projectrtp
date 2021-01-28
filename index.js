@@ -301,9 +301,10 @@ class sdpgen {
   An RTP Channel
 */
 class projectrtpchannel {
-  constructor( prtp, sdp ) {
+  constructor( prtp, sdp, srv ) {
     this.conn = prtp
     this.remotesdp = sdp
+    this.srv = srv
     this.id = crypto.randomBytes( 16 ).toString( "hex" )
     this.conn.channels.set( this.id, this )
     this.uuid = false
@@ -344,7 +345,7 @@ class projectrtpchannel {
         this.opentimer = false
       }, requesttimeout )
 
-      this.conn.send( msg )
+      this.send( msg )
     } )
   }
 
@@ -357,7 +358,7 @@ class projectrtpchannel {
       "target": this.remotesdp.getaudioremote()
     }
 
-    this.conn.send( msg )
+    this.send( msg )
   }
 
   rfc2833( pt ) {
@@ -367,7 +368,7 @@ class projectrtpchannel {
       "pt": pt
     }
 
-    this.conn.send( msg )
+    this.send( msg )
   }
 
   mix( other ) {
@@ -377,7 +378,7 @@ class projectrtpchannel {
       "uuid": [ this.uuid, other.uuid ]
     }
 
-    this.conn.send( msg )
+    this.send( msg )
   }
 
   unmix() {
@@ -387,7 +388,7 @@ class projectrtpchannel {
       "uuid": this.uuid
     }
 
-    this.conn.send( msg )
+    this.send( msg )
   }
 
   play( soup ) {
@@ -398,7 +399,11 @@ class projectrtpchannel {
       "soup": soup
     }
 
-    this.conn.send( msg )
+    this.send( msg )
+  }
+
+  send( msg ) {
+    this.conn.send( this.srv, msg )
   }
 
   echo() {
@@ -408,7 +413,7 @@ class projectrtpchannel {
       "uuid": this.uuid
     }
 
-    this.conn.send( msg )
+    this.send( msg )
   }
 
   on( event, cb ) {
@@ -426,11 +431,6 @@ class projectrtpchannel {
   }
 
   update( msg ) {
-
-    if( undefined !== msg.status ) {
-      this.conn.status = msg.status
-    }
-
     switch( msg.action ) {
 
       case "open": {
@@ -489,17 +489,45 @@ class projectrtpchannel {
         this.closetimer = false
       }, requesttimeout )
 
-      this.conn.send( msg )
+      this.send( msg )
     } )
   }
 }
+
+/*
+  class ProjectRTP
+
+  Listens for connections from projectrtp instances and farms out work to them.
+
+  Data we track:
+  {
+    Connection - a tcp control connection to a projectrtp server
+    Channel - an RTP channel between our rtpengine instance and the client
+    connections: Map < key - protjectrtp instance id > { {
+        sock - the underlying socket
+        instance - the instance (uuid) which we where provided
+        projectrtp - reference back to the main projectrtp singleton
+        active - number of channels currently active
+        available - number of channels currently available
+      }
+    }
+    channels: Map < key - our channel instance id >
+
+    Total across all connected instances:
+    stats: {
+      available
+      active
+    }
+  }
+*/
 
 class ProjectRTP {
   constructor( options ) {
 
     this.options = {
       "port": 9002,
-      "address": "127.0.0.1"
+      "address": "127.0.0.1",
+      "debug": false
     }
 
     this.connections = new Map()
@@ -515,7 +543,7 @@ class ProjectRTP {
     this.em = new events.EventEmitter()
 
     this.server.listen( this.options.port, this.options.address, () => {
-      console.log( `ProjectRTP control server listening on port ${this.options.port}` )
+      this.consolelog( `ProjectRTP control server listening on port ${this.options.port}` )
     } )
 
     this.server.on( "connection", ( sock ) => {
@@ -572,13 +600,19 @@ class ProjectRTP {
 
               let msg = JSON.parse( msgbody )
 
-              if( undefined !== msg.action && "connected" === msg.action ) {
+              let old = this.connections.get( msg.instance )
+              if( undefined !== old ) {
+                this.stats.available -= old.available
+                this.stats.active -= old.active
 
-                let old = this.connections.get( msg.instance )
-                if( undefined !== old ) {
-                  this.stats.available -= old.available
-                  this.stats.active -= old.active
-                }
+                old.available = msg.status.channels.available
+                old.active = msg.status.channels.active
+              }
+
+              this.stats.available += msg.status.channels.available
+              this.stats.active += msg.status.channels.active
+
+              if( undefined !== msg.action && "connected" === msg.action ) {
 
                 var srv = {
                   "sock": sock,
@@ -589,13 +623,9 @@ class ProjectRTP {
                 }
 
                 sock.parent = srv
-
-                this.stats.available += srv.available
-                this.stats.active += srv.active
-
                 this.connections.set( msg.instance, srv )
 
-                console.log( `Client ${msg.instance} connected, ${this.stats.available} total available channels and ${this.stats.active} total active channels across ${this.connections.size} instance(s)` )
+                this.consolelog( `Client ${msg.instance} connected` )
                 this.em.emit( "connection", srv )
               } else {
                 let chann = this.channels.get( msg.id )
@@ -603,6 +633,8 @@ class ProjectRTP {
                   chann.update( msg )
                 }
               }
+
+              this.consolelog( `${this.stats.available} total available channels and ${this.stats.active} total active channels across ${this.connections.size} instance(s)` )
             }
           }
         }
@@ -610,20 +642,23 @@ class ProjectRTP {
     } )
 
     this.server.on( "close", ( ) => {
-      console.log( "Shutting down control server" )
+      this.consolelog( "Shutting down control server" )
     } )
+  }
+
+  consolelog( msg ) {
+    if( this.options.debug ) {
+      console.log( msg )
+    }
   }
 
   on( event, cb ) {
     this.em.on( event, cb )
   }
 
-  send( msg ) {
-    /* more decision logic required */
-    const iterator1 = this.connections.keys()
-    const instance = iterator1.next().value
+  send( srv, msg ) {
 
-    let sock = this.connections.get( instance ).sock
+    let sock = srv.sock
 
     let encoded = JSON.stringify( msg )
     sock.write( Buffer.from( [ 0x33, 0x00, 0x00, ( encoded.length >> 8 ) & 0xff, encoded.length & 0xff ] ) )
@@ -634,8 +669,32 @@ class ProjectRTP {
     open a channel and get the port number to publish
     sdp is our received sdp as object - to obtain our target
   */
-  channel( sdp ) {
-    let channel = new projectrtpchannel( this, sdp )
+  channel( sdp, relatedchannel ) {
+    /*
+      Select an rtp instance during open.
+      Notes, we could make this more efficient. How may servers will we have
+      realistically. Up to a 100 - NP. Greater than that - perhaps we need to think
+      about improving this. For future work we will also decide based on
+      CPU reported by each server, but for now - how many channels are available.
+      Always leave a spare channel so that a transfer can happen.
+    */
+    let srv
+
+    if( undefined !== relatedchannel ) {
+      srv = relatedchannel.srv
+    } else {
+      for( const [ key, value ] of this.connections.entries() ) {
+        if( undefined === srv || ( value.available > 2 && srv.active > value.active ) ) {
+          srv = value
+        }
+      }
+    }
+
+    if( undefined === srv ) {
+      throw "Currently no connected projectrtp servers"
+    }
+
+    let channel = new projectrtpchannel( this, sdp, srv )
     return channel.open()
   }
 
