@@ -15,6 +15,8 @@ by that user should be sent to the same server as they are likely to be bridged 
 the same server - otherwise we have to do all of the logic to send rtp between 2 different rtp servers.
 */
 
+const requesttimeout = 1500
+
 
 /*
   An SDP Generator.
@@ -312,8 +314,10 @@ class projectrtpchannel {
 
     this.openresolve = false
     this.openreject = false
+    this.opentimer = false
     this.closeresolve = false
     this.closereject = false
+    this.closetimer = false
   }
 
   open() {
@@ -331,6 +335,15 @@ class projectrtpchannel {
 
       this.openresolve = resolve
       this.openreject = reject
+
+      this.opentimer = setTimeout( () => {
+        if( false !== this.opentimer  ) {
+          this.openreject()
+        }
+        this.openreject = false
+        this.opentimer = false
+      }, requesttimeout )
+
       this.conn.send( msg )
     } )
   }
@@ -443,6 +456,7 @@ class projectrtpchannel {
 
       case "close": {
         this.em.emit( "close", msg )
+        if( false !== this.closetimer ) clearTimeout( this.closetimer )
         if( false !== this.closeresolve ) this.closeresolve( this )
         this.conn.channels.delete( this.id )
         this.state = 3
@@ -451,7 +465,6 @@ class projectrtpchannel {
     }
   }
 
-  /* Add a timer? */
   destroy() {
     return new Promise( ( resolve, reject ) => {
       let msg = {
@@ -467,6 +480,15 @@ class projectrtpchannel {
 
       this.closeresolve = resolve
       this.closereject = reject
+
+      this.closetimer = setTimeout( () => {
+        if( false !== this.closereject  ) {
+          this.closereject()
+        }
+        this.closereject = false
+        this.closetimer = false
+      }, requesttimeout )
+
       this.conn.send( msg )
     } )
   }
@@ -483,6 +505,11 @@ class ProjectRTP {
     this.connections = new Map()
     this.channels = new Map()
 
+    /* Totals across all clients */
+    this.stats = {}
+    this.stats.available = 0
+    this.stats.active = 0
+
     this.options = { ...this.options, ...options }
     this.server = net.createServer()
     this.em = new events.EventEmitter()
@@ -492,17 +519,15 @@ class ProjectRTP {
     } )
 
     this.server.on( "connection", ( sock ) => {
-      console.log( "Client connected" )
+      sock.on( "close", () => {
+        let old = this.connections.get( sock.parent.instance )
+        if( undefined !== old ) {
+          this.stats.available -= old.available
+          this.stats.active -= old.active
 
-      var key = sock.remoteAddress.replace( /\./g, "_" ) + "_" + sock.remotePort
-      var srv = { "sock": sock, "key": key, "projectrtp": this }
-      sock.parent = srv
-      this.connections.set( key, srv )
-      this.em.emit( "connection", srv )
-
-      sock.on( "close", function(){
-        this.parent.projectrtp.connections.delete( this.parent.key )
-        this.parent.projectrtp.em.emit( "close", { "sock": sock } )
+          this.connections.delete( sock.parent.instance )
+          this.em.emit( "close", sock.parent )
+        }
       } )
 
       var state = 0 /* waiting on header */
@@ -547,9 +572,36 @@ class ProjectRTP {
 
               let msg = JSON.parse( msgbody )
 
-              let chann = this.channels.get( msg.id )
-              if( undefined !== chann ) {
-                chann.update( msg )
+              if( undefined !== msg.action && "connected" === msg.action ) {
+
+                let old = this.connections.get( msg.instance )
+                if( undefined !== old ) {
+                  this.stats.available -= old.available
+                  this.stats.active -= old.active
+                }
+
+                var srv = {
+                  "sock": sock,
+                  "instance": msg.instance,
+                  "projectrtp": this,
+                  "active": msg.status.channels.active,
+                  "available": msg.status.channels.available
+                }
+
+                sock.parent = srv
+
+                this.stats.available += srv.available
+                this.stats.active += srv.active
+
+                this.connections.set( msg.instance, srv )
+
+                console.log( `Client ${msg.instance} connected, ${this.stats.available} total available channels and ${this.stats.active} total active channels across ${this.connections.size} instance(s)` )
+                this.em.emit( "connection", srv )
+              } else {
+                let chann = this.channels.get( msg.id )
+                if( undefined !== chann ) {
+                  chann.update( msg )
+                }
               }
             }
           }
@@ -569,8 +621,9 @@ class ProjectRTP {
   send( msg ) {
     /* more decision logic required */
     const iterator1 = this.connections.keys()
-    const key = iterator1.next().value
-    let sock = this.connections.get( key ).sock
+    const instance = iterator1.next().value
+
+    let sock = this.connections.get( instance ).sock
 
     let encoded = JSON.stringify( msg )
     sock.write( Buffer.from( [ 0x33, 0x00, 0x00, ( encoded.length >> 8 ) & 0xff, encoded.length & 0xff ] ) )
