@@ -1,6 +1,4 @@
-
-
-const s =  new require( "../index.js" ).sdp
+const s = new require( "../index.js" ).sdp
 const projectrtp = require( "../index.js" ).ProjectRTP
 
 let test1 = `v=0
@@ -14,7 +12,7 @@ a=fmtp:101 0-16
 a=sendrecv`
 
 
-if( "pcma" != s.create( test1 ).intersection( "pcma pcmu" ) ) {
+if ( "pcma" != s.create( test1 ).intersection( "pcma pcmu" ) ) {
   throw "Intersection should return pcma"
 }
 
@@ -34,53 +32,53 @@ a=rtpmap:98 telephone-event/48000
 a=fmtp:98 0-16
 a=sendrecv`
 
-if( "pcma pcmu" != s.create( test2 ).intersection( "pcma pcmu" ) ) {
+if ( "pcma pcmu" != s.create( test2 ).intersection( "pcma pcmu" ) ) {
   throw "Intersection should return pcma pcmu"
 }
 
-if( "pcma" != s.create( test2 ).intersection( "pcma pcmu", true ) ) {
+if ( "pcma" != s.create( test2 ).intersection( "pcma pcmu", true ) ) {
   throw "Intersection should return pcma"
 }
 
-if( "pcmu" != s.create( test2 ).intersection( "pcmu pcma", true ) ) {
+if ( "pcmu" != s.create( test2 ).intersection( "pcmu pcma", true ) ) {
   throw "Intersection should return pcmu"
 }
 
-if( "ilbc pcmu" != s.create( test2 ).intersection( "ilbc pcmu" ) ) {
+if ( "ilbc pcmu" != s.create( test2 ).intersection( "ilbc pcmu" ) ) {
   throw "Intersection should return ilbc pcmu"
 }
 
-if( "ilbc pcmu" != s.create( test2 ).intersection( [97, 0] ) ) {
+if ( "ilbc pcmu" != s.create( test2 ).intersection( [ 97, 0 ] ) ) {
   throw "Intersection should return ilbc pcmu"
 }
 
 /* Setsession id only to permorm the test - normally use the default changing one */
 let newsdp = s.create().setsessionid( 0 ).addcodecs( "pcma" ).toString()
-if( "v=0\r\n" +
-    "o=- 0 0 IN IP4 127.0.0.1\r\n" +
-    "s=project\r\n" +
-    "c=IN IP4 127.0.0.1\r\n" +
-    "t=0 0\r\n" +
-    "m=audio 0 RTP/AVP 8\r\n" +
-    "a=rtpmap:8 PCMA/8000\r\n" +
-    "a=ptime:20\r\n" +
-    "a=sendrecv" != newsdp ) {
-console.log( newsdp )
+if ( "v=0\r\n" +
+  "o=- 0 0 IN IP4 127.0.0.1\r\n" +
+  "s=project\r\n" +
+  "c=IN IP4 127.0.0.1\r\n" +
+  "t=0 0\r\n" +
+  "m=audio 0 RTP/AVP 8\r\n" +
+  "a=rtpmap:8 PCMA/8000\r\n" +
+  "a=ptime:20\r\n" +
+  "a=sendrecv" != newsdp ) {
+  console.log( newsdp )
   throw "SDP not correctly created (pcma)"
 }
 
 newsdp = s.create().setsessionid( 0 ).addcodecs( "ilbc pcma" ).toString()
-if( "v=0\r\n" +
-    "o=- 0 0 IN IP4 127.0.0.1\r\n" +
-    "s=project\r\n" +
-    "c=IN IP4 127.0.0.1\r\n" +
-    "t=0 0\r\n" +
-    "m=audio 0 RTP/AVP 97 8\r\n" +
-    "a=rtpmap:97 ilbc/8000\r\n" +
-    "a=rtpmap:8 PCMA/8000\r\n" +
-    "a=fmtp:97 mode=20\r\n" +
-    "a=ptime:20\r\n" +
-    "a=sendrecv" != newsdp ) {
+if ( "v=0\r\n" +
+  "o=- 0 0 IN IP4 127.0.0.1\r\n" +
+  "s=project\r\n" +
+  "c=IN IP4 127.0.0.1\r\n" +
+  "t=0 0\r\n" +
+  "m=audio 0 RTP/AVP 97 8\r\n" +
+  "a=rtpmap:97 ilbc/8000\r\n" +
+  "a=rtpmap:8 PCMA/8000\r\n" +
+  "a=fmtp:97 mode=20\r\n" +
+  "a=ptime:20\r\n" +
+  "a=sendrecv" != newsdp ) {
 
   console.log( newsdp )
   throw "SDP not correctly created (ilbc pcma)"
@@ -88,17 +86,17 @@ if( "v=0\r\n" +
 
 /* don't allow duplicates */
 newsdp = s.create().setsessionid( 0 ).addcodecs( "ilbc ilbc pcma" ).toString()
-if( "v=0\r\n" +
-    "o=- 0 0 IN IP4 127.0.0.1\r\n" +
-    "s=project\r\n" +
-    "c=IN IP4 127.0.0.1\r\n" +
-    "t=0 0\r\n" +
-    "m=audio 0 RTP/AVP 97 8\r\n" +
-    "a=rtpmap:97 ilbc/8000\r\n" +
-    "a=rtpmap:8 PCMA/8000\r\n" +
-    "a=fmtp:97 mode=20\r\n" +
-    "a=ptime:20\r\n" +
-    "a=sendrecv" != newsdp ) {
+if ( "v=0\r\n" +
+  "o=- 0 0 IN IP4 127.0.0.1\r\n" +
+  "s=project\r\n" +
+  "c=IN IP4 127.0.0.1\r\n" +
+  "t=0 0\r\n" +
+  "m=audio 0 RTP/AVP 97 8\r\n" +
+  "a=rtpmap:97 ilbc/8000\r\n" +
+  "a=rtpmap:8 PCMA/8000\r\n" +
+  "a=fmtp:97 mode=20\r\n" +
+  "a=ptime:20\r\n" +
+  "a=sendrecv" != newsdp ) {
 
   console.log( newsdp )
   throw "SDP not correctly created (ilbc pcma)"
@@ -121,7 +119,7 @@ a=rtpmap:97 iLBC/8000
 a=fmtp:97 mode=30
 a=sendrecv`
 
-if( "pcmu" !== s.create( test3 ).intersection( "ilbc pcmu" ) ) {
+if ( "pcmu" !== s.create( test3 ).intersection( "ilbc pcmu" ) ) {
   throw "Only pcmu should be included as mode=30 for ilbc which is wrong"
 }
 
@@ -135,7 +133,7 @@ a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-16
 a=sendrecv`
 
-if( "pcma" !== s.create( test4 ).intersection( "pcmu pcma" ) ) {
+if ( "pcma" !== s.create( test4 ).intersection( "pcmu pcma" ) ) {
   throw "We should have found pcma"
 }
 
@@ -158,7 +156,7 @@ a=sendrecv`
 let remote = s.create( test5 )
 let chosen = remote.intersection( "g722 pcmu", true )
 
-if( "g722" !== chosen ) {
+if ( "g722" !== chosen ) {
   throw "We should have found 722 but got " + chosen
 }
 
@@ -172,7 +170,7 @@ rtp.on( "connection", async ( conn ) => {
 
 
   console.log( "Opening 100 one at a time" )
-  for( let i = 0; i < 100; i ++ ) {
+  for ( let i = 0; i < 100; i++ ) {
 
     let channela = await rtp.channel( s.create( test4 ).select( "g722" ) )
     channela.rfc2833( 101 )
@@ -188,7 +186,7 @@ rtp.on( "connection", async ( conn ) => {
 
   console.log( "opening 100 using Promise.all" )
   let channelcollection = []
-  for( let i = 0; i < 100; i ++ ) {
+  for ( let i = 0; i < 100; i++ ) {
     channelcollection.push( rtp.channel( s.create( test4 ).select( "g722" ) ) )
   }
 
@@ -207,15 +205,17 @@ rtp.on( "connection", async ( conn ) => {
   let closed = false
   let channelconn = channela.conn
 
-  channela.on( "close", ( m ) => { closed = true } )
+  channela.on( "close", ( m ) => {
+    closed = true
+  } )
   await new Promise( resolve => setTimeout( resolve, 10000 ) )
 
-  if( !closed ) {
+  if ( !closed ) {
     throw "The channel did not close through inactivity"
   }
 
 
-  if( 0 !== channelconn.stats.active ) {
+  if ( 0 !== channelconn.stats.active ) {
     throw `Uh oh, we still have ${channelconn.status.channels.active} channels open - please run these tests after restarting projectrtp with no other connections`
   }
 

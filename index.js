@@ -1,5 +1,3 @@
-
-
 'use strict'
 
 const net = require( "net" )
@@ -23,8 +21,20 @@ const requesttimeout = 1500
 */
 var sessionidcounter = Math.floor( Math.random() * 100000 )
 
-const codecconv = { "0": "pcmu", "8": "pcma", "9": "g722", "97": "ilbc", "101": "2833" }
-const codecrconv = { "pcmu": 0, "pcma": 8, "g722": 9, "ilbc": 97, "2833": 101 }
+const codecconv = {
+  "0": "pcmu",
+  "8": "pcma",
+  "9": "g722",
+  "97": "ilbc",
+  "101": "2833"
+}
+const codecrconv = {
+  "pcmu": 0,
+  "pcma": 8,
+  "g722": 9,
+  "ilbc": 97,
+  "2833": 101
+}
 
 const codecdefs = {
   "type": {
@@ -35,34 +45,59 @@ const codecdefs = {
     "2833": "audio",
   },
   "rtp": {
-    "pcmu": { payload: 0, codec: 'PCMU', rate: 8000 },
-    "pcma": { payload: 8, codec: 'PCMA', rate: 8000 },
-    "g722": { payload: 9, codec: 'G722', rate: 16000 },
-    "ilbc": { payload: 97, codec: 'ilbc', rate: 8000 },
-    "2833": { payload: 101, codec: 'telephone-event' }
+    "pcmu": {
+      payload: 0,
+      codec: 'PCMU',
+      rate: 8000
+    },
+    "pcma": {
+      payload: 8,
+      codec: 'PCMA',
+      rate: 8000
+    },
+    "g722": {
+      payload: 9,
+      codec: 'G722',
+      rate: 16000
+    },
+    "ilbc": {
+      payload: 97,
+      codec: 'ilbc',
+      rate: 8000
+    },
+    "2833": {
+      payload: 101,
+      codec: 'telephone-event'
+    }
   },
   "fmtp": {
-    "ilbc": { payload: 97, config: "mode=20" },
-    "2833": { payload: 101, config: "0-16" } /* 0-16 = DTMF */
+    "ilbc": {
+      payload: 97,
+      config: "mode=20"
+    },
+    "2833": {
+      payload: 101,
+      config: "0-16"
+    } /* 0-16 = DTMF */
   }
 }
 
 const defaultaudiomedia = {
-                      "rtp": [],
-                      "fmtp": [],
-                      "type": "audio",
-                      "port": 0,
-                      "protocol": "RTP/AVP",
-                      "payloads": [],
-                      "ptime": 20,
-                      "direction": "sendrecv"
-                    }
+  "rtp": [],
+  "fmtp": [],
+  "type": "audio",
+  "port": 0,
+  "protocol": "RTP/AVP",
+  "payloads": [],
+  "ptime": 20,
+  "direction": "sendrecv"
+}
 
 class sdpgen {
 
   constructor( sdp ) {
 
-    if( undefined === sdp ) {
+    if ( undefined === sdp ) {
       sessionidcounter = ( sessionidcounter + 1 ) % 4294967296
 
       this.sdp = {
@@ -76,8 +111,14 @@ class sdpgen {
           address: "127.0.0.1"
         },
         name: 'project',
-        timing: { start: 0, stop: 0 },
-        connection: { version: 4, ip: "127.0.0.1" },
+        timing: {
+          start: 0,
+          stop: 0
+        },
+        connection: {
+          version: 4,
+          ip: "127.0.0.1"
+        },
         //iceUfrag: 'F7gI',
         //icePwd: 'x9cml/YzichV2+XlhiMu8g',
         //fingerprint:
@@ -101,12 +142,12 @@ class sdpgen {
       /* Convert payloads to something more consistent. Always an array of Numbers */
       this.sdp.media.forEach( ( media, i, a ) => {
 
-        if( "audio" === media.type ) {
-          if( typeof media.payloads === "string" ) {
-            media.payloads = media.payloads.split(  /[ ,]+/  )
+        if ( "audio" === media.type ) {
+          if ( typeof media.payloads === "string" ) {
+            media.payloads = media.payloads.split( /[ ,]+/ )
           }
 
-          if( !Array.isArray( media.payloads ) ) {
+          if ( !Array.isArray( media.payloads ) ) {
             a[ i ].payloads = [ media.payloads ]
           }
 
@@ -122,17 +163,19 @@ class sdpgen {
   getaudioremote() {
     let m = this.sdp.media.find( mo => "audio" === mo.type )
 
-    if( m ) {
+    if ( m ) {
 
       let payloads = m.payloads
-      if( this.selected !== undefined ) {
+      if ( this.selected !== undefined ) {
         payloads = [ this.selected ]
       }
 
       return {
         "port": m.port,
         "ip": this.sdp.connection.ip,
-        "audio": { "payloads": payloads }
+        "audio": {
+          "payloads": payloads
+        }
       }
     }
     return false
@@ -144,8 +187,8 @@ class sdpgen {
   If intersect has been called with firstonly flag set then this has the same effect.
   */
   select( codec ) {
-    if( isNaN( codec ) ) {
-      if( undefined === codecrconv[ codec ] ) return
+    if ( isNaN( codec ) ) {
+      if ( undefined === codecrconv[ codec ] ) return
       codec = codecrconv[ codec ]
     }
     this.selected = Number( codec )
@@ -179,14 +222,14 @@ class sdpgen {
 
   setchannel( ch ) {
     this.setaudioport( ch.local.port )
-        .setconnectionaddress( ch.local.ip )
-        .setoriginaddress( ch.local.ip )
+      .setconnectionaddress( ch.local.ip )
+      .setoriginaddress( ch.local.ip )
     return this
   }
 
   getmedia( type = "audio" ) {
     let m = this.sdp.media.find( mo => type === mo.type )
-    if( !m ) {
+    if ( !m ) {
       this.sdp.media.push( defaultaudiomedia )
       m = this.sdp.media[ this.sdp.media.length - 1 ]
     }
@@ -203,7 +246,7 @@ class sdpgen {
   */
   addcodecs( codecs ) {
     let codecarr = codecs
-    if( !Array.isArray( codecarr ) ) {
+    if ( !Array.isArray( codecarr ) ) {
       codecarr = codecs.split( /[ ,]+/ )
     }
 
@@ -211,16 +254,16 @@ class sdpgen {
 
       /* Don't allow duplicates */
       let codecn = codecrconv[ codec ]
-      if( this.sdp.media.find( m => m.payloads.find( v => codecn == v ) ) ) return
+      if ( this.sdp.media.find( m => m.payloads.find( v => codecn == v ) ) ) return
 
-      if( undefined !== codecdefs.rtp[ codec ] ) {
+      if ( undefined !== codecdefs.rtp[ codec ] ) {
         /* suported audio */
         let m = this.getmedia( codecdefs.type[ codec ] )
 
         m.rtp.push( codecdefs.rtp[ codec ] )
         m.payloads.push( codecdefs.rtp[ codec ].payload )
 
-        if( undefined !== codecdefs.fmtp[ codec ] ) {
+        if ( undefined !== codecdefs.fmtp[ codec ] ) {
           m.fmtp.push( codecdefs.fmtp[ codec ] )
         }
       }
@@ -245,13 +288,13 @@ class sdpgen {
   If first ony, it only returns the first match
   */
   intersection( other, firstonly = false ) {
-    if( typeof other === "string" ){
+    if ( typeof other === "string" ) {
       other = other.split( /[ ,]+/ )
     }
 
     /* convert to payloads */
     other.forEach( ( codec, i, a ) => {
-      if( isNaN( codec ) ) {
+      if ( isNaN( codec ) ) {
         a[ i ] = codecrconv[ codec ]
       }
     } )
@@ -260,25 +303,25 @@ class sdpgen {
     let retval = []
     this.sdp.media.forEach( m => {
       retval = retval.concat( other.filter( pl => {
-        if( m.payloads.includes( pl ) ) {
+        if ( m.payloads.includes( pl ) ) {
           let codecname = codecconv[ pl ]
-          if( undefined === codecdefs.fmtp[ codecname ] ) return true
+          if ( undefined === codecdefs.fmtp[ codecname ] ) return true
 
           let fmtp = codecdefs.fmtp[ codecname ] /* i.e. { payload: 97, config: "mode=20" } */
-          if( undefined !== m.fmtp.find( f => f.payload == fmtp.payload && f.config == fmtp.config ) ) return true
+          if ( undefined !== m.fmtp.find( f => f.payload == fmtp.payload && f.config == fmtp.config ) ) return true
         }
         return false
       } ) )
     } )
 
-    if( firstonly && retval.length > 0 ) {
+    if ( firstonly && retval.length > 0 ) {
       retval = [ retval[ 0 ] ]
       this.select( retval[ 0 ] )
     }
 
     /* We want named codecs */
     retval.forEach( ( codec, i, a ) => {
-      if( undefined != codecconv[ codec ] ) a[ i ] = codecconv[ codec ]
+      if ( undefined != codecconv[ codec ] ) a[ i ] = codecconv[ codec ]
     } )
 
     return retval.join( " " )
@@ -330,7 +373,7 @@ class projectrtpchannel {
         "id": this.id
       }
 
-      if( undefined !== this.remotesdp ) {
+      if ( undefined !== this.remotesdp ) {
         msg.target = this.remotesdp.getaudioremote()
       }
 
@@ -338,7 +381,7 @@ class projectrtpchannel {
       this.openreject = reject
 
       this.opentimer = setTimeout( () => {
-        if( false !== this.opentimer  ) {
+        if ( false !== this.opentimer ) {
           this.openreject()
         }
         this.openreject = false
@@ -431,19 +474,19 @@ class projectrtpchannel {
   }
 
   update( msg ) {
-    switch( msg.action ) {
+    switch ( msg.action ) {
 
       case "open": {
         this.state = 2
-        if( false === this.uuid &&
-            undefined !== msg.channel.uuid ) {
+        if ( false === this.uuid &&
+          undefined !== msg.channel.uuid ) {
           this.local = {}
           this.local.ip = msg.channel.ip
           this.local.port = msg.channel.port
           this.uuid = msg.channel.uuid
 
           this.em.emit( "open", msg )
-          if( false !== this.openresolve ) this.openresolve( this )
+          if ( false !== this.openresolve ) this.openresolve( this )
 
         }
         break
@@ -456,8 +499,8 @@ class projectrtpchannel {
 
       case "close": {
         this.em.emit( "close", msg )
-        if( false !== this.closetimer ) clearTimeout( this.closetimer )
-        if( false !== this.closeresolve ) this.closeresolve( this )
+        if ( false !== this.closetimer ) clearTimeout( this.closetimer )
+        if ( false !== this.closeresolve ) this.closeresolve( this )
         this.conn.channels.delete( this.id )
         this.state = 3
         break
@@ -473,7 +516,7 @@ class projectrtpchannel {
       }
 
       /* Already closed */
-      if( 3 === this.state ) {
+      if ( 3 === this.state ) {
         this.closereject( this )
         return
       }
@@ -482,7 +525,7 @@ class projectrtpchannel {
       this.closereject = reject
 
       this.closetimer = setTimeout( () => {
-        if( false !== this.closereject  ) {
+        if ( false !== this.closereject ) {
           this.closereject()
         }
         this.closereject = false
@@ -538,7 +581,10 @@ class ProjectRTP {
     this.stats.available = 0
     this.stats.active = 0
 
-    this.options = { ...this.options, ...options }
+    this.options = {
+      ...this.options,
+      ...options
+    }
     this.server = net.createServer()
     this.em = new events.EventEmitter()
 
@@ -549,7 +595,7 @@ class ProjectRTP {
     this.server.on( "connection", ( sock ) => {
       sock.on( "close", () => {
         let old = this.connections.get( sock.parent.instance )
-        if( undefined !== old ) {
+        if ( undefined !== old ) {
           this.stats.available -= old.available
           this.stats.active -= old.active
 
@@ -561,23 +607,23 @@ class ProjectRTP {
       var state = 0 /* waiting on header */
       var bodylength = 0
       var bodylengthread = 0
-      var bodycache = new Buffer.from([])
+      var bodycache = new Buffer.from( [] )
 
       sock.on( "data", ( data ) => {
 
-        if( 2 == state ) {
+        if ( 2 == state ) {
           state = 0
           return
         }
 
         bodycache = Buffer.concat( [ bodycache, data ] )
 
-        while( bodycache.length > 0 ) {
-          if( 0 === state ) {
+        while ( bodycache.length > 0 ) {
+          if ( 0 === state ) {
             let dataheader = bodycache.slice( 0, 5 )
             bodycache = bodycache.slice( 5 )
 
-            if( 0x33 == dataheader[ 0 ] ) {
+            if ( 0x33 == dataheader[ 0 ] ) {
               bodylength = ( dataheader[ 3 ] << 8 ) | dataheader[ 4 ]
               // We should do more checks here
               state = 1
@@ -588,9 +634,9 @@ class ProjectRTP {
             }
           }
 
-          if( bodycache.length > 0 ) {
+          if ( bodycache.length > 0 ) {
 
-            if( bodycache.length < bodylength ) {
+            if ( bodycache.length < bodylength ) {
               return
             } else {
               state = 0
@@ -601,7 +647,7 @@ class ProjectRTP {
               let msg = JSON.parse( msgbody )
 
               let old = this.connections.get( msg.instance )
-              if( undefined !== old ) {
+              if ( undefined !== old ) {
                 this.stats.available -= old.available
                 this.stats.active -= old.active
 
@@ -612,7 +658,7 @@ class ProjectRTP {
               this.stats.available += msg.status.channels.available
               this.stats.active += msg.status.channels.active
 
-              if( undefined !== msg.action && "connected" === msg.action ) {
+              if ( undefined !== msg.action && "connected" === msg.action ) {
 
                 var srv = {
                   "sock": sock,
@@ -629,7 +675,7 @@ class ProjectRTP {
                 this.em.emit( "connection", srv )
               } else {
                 let chann = this.channels.get( msg.id )
-                if( undefined !== chann ) {
+                if ( undefined !== chann ) {
                   chann.update( msg )
                 }
               }
@@ -641,13 +687,13 @@ class ProjectRTP {
       } )
     } )
 
-    this.server.on( "close", ( ) => {
+    this.server.on( "close", () => {
       this.consolelog( "Shutting down control server" )
     } )
   }
 
   consolelog( msg ) {
-    if( this.options.debug ) {
+    if ( this.options.debug ) {
       console.log( msg )
     }
   }
@@ -680,17 +726,17 @@ class ProjectRTP {
     */
     let srv
 
-    if( undefined !== relatedchannel ) {
+    if ( undefined !== relatedchannel ) {
       srv = relatedchannel.srv
     } else {
-      for( const [ key, value ] of this.connections.entries() ) {
-        if( undefined === srv || ( value.available > 2 && srv.active > value.active ) ) {
+      for ( const [ key, value ] of this.connections.entries() ) {
+        if ( undefined === srv || ( value.available > 2 && srv.active > value.active ) ) {
           srv = value
         }
       }
     }
 
-    if( undefined === srv ) {
+    if ( undefined === srv ) {
       throw "Currently no connected projectrtp servers"
     }
 
