@@ -336,7 +336,7 @@ class sdpgen {
       a[ i ].payloads = media.payloads.join( " " )
     } )
 
-    return sdptransform.write( co ).trim()
+    return sdptransform.write( co )
   }
 }
 
