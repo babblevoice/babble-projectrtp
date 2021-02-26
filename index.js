@@ -237,6 +237,10 @@ class sdpgen {
     return m
   }
 
+  setaudiodirection( direction /* sendrecv|inactive|sendonly|recvonly */ ) {
+    this.getmedia().direction = direction
+  }
+
   /*
   Add a CODEC or CODECs, formats:
   "pcma"
@@ -254,7 +258,13 @@ class sdpgen {
 
       /* Don't allow duplicates */
       let codecn = codecrconv[ codec ]
-      if ( this.sdp.media.find( m => m.payloads.find( v => codecn == v ) ) ) return
+      if ( this.sdp.media.find( m => {
+          if( "string" === typeof m.payloads ) {
+            m.payloads = m.payloads.split( /[ ,]+/ )
+          }
+          m.payloads.find( v => codecn == v )
+        } )
+      ) return
 
       if ( undefined !== codecdefs.rtp[ codec ] ) {
         /* suported audio */
@@ -267,6 +277,17 @@ class sdpgen {
           m.fmtp.push( codecdefs.fmtp[ codec ] )
         }
       }
+    } )
+
+    return this
+  }
+
+  clearcodecs() {
+
+    this.sdp.media.forEach( m => {
+      m.payloads = []
+      m.rtp = []
+      m.fmtp = []
     } )
 
     return this
@@ -333,7 +354,9 @@ class sdpgen {
     let co = Object.assign( this.sdp )
 
     co.media.forEach( ( media, i, a ) => {
-      a[ i ].payloads = media.payloads.join( " " )
+      if( Array.isArray( media.payloads ) ) {
+        a[ i ].payloads = media.payloads.join( " " )
+      }
     } )
 
     return sdptransform.write( co )
@@ -346,7 +369,7 @@ class sdpgen {
 class projectrtpchannel {
   constructor( prtp, sdp, srv ) {
     this.conn = prtp
-    this.remotesdp = sdp
+    this._remotesdp = sdp
     this.srv = srv
     this.id = crypto.randomBytes( 16 ).toString( "hex" )
     this.conn.channels.set( this.id, this )
@@ -364,6 +387,57 @@ class projectrtpchannel {
     this.closetimer = false
   }
 
+  get remotesdp() {
+    return this._remotesdp
+  }
+
+
+  get localsdp() {
+    if( undefined === this._localsdp ) {
+      this._localsdp = sdpgen.create()
+        .setchannel( this )
+    }
+
+    return this._localsdp
+  }
+
+  toString() {
+    throw "Call toString on local or remote sdp not the channel"
+  }
+
+  setaudiodirection( direction /* sendrecv|inactive|sendonly|recvonly */ ) {
+    this._localsdp.setaudiodirection( direction )
+    /* TODO - inform our RTP server to save work and bandwidth */
+
+    let send = true
+    let recv = true
+
+    switch( direction ) {
+      case "inactive": {
+        send = false
+        recv = false
+        break
+      }
+      case "sendonly": {
+        recv = false
+        break
+      }
+      case "recvonly": {
+        send = false
+        break
+      }
+    }
+
+    let msg = {
+      "channel": "direction",
+      "uuid": this.uuid,
+      "send": send,
+      "recv": recv
+    }
+
+    this.send( msg )
+  }
+
   open() {
     this.state = 1
 
@@ -373,8 +447,8 @@ class projectrtpchannel {
         "id": this.id
       }
 
-      if ( undefined !== this.remotesdp ) {
-        msg.target = this.remotesdp.getaudioremote()
+      if ( undefined !== this._remotesdp ) {
+        msg.target = this._remotesdp.getaudioremote()
       }
 
       this.openresolve = resolve
@@ -394,11 +468,11 @@ class projectrtpchannel {
 
   target( sdp ) {
 
-    this.remotesdp = sdp
+    this._remotesdp = sdp
     let msg = {
       "channel": "target",
       "uuid": this.uuid,
-      "target": this.remotesdp.getaudioremote()
+      "target": this._remotesdp.getaudioremote()
     }
 
     this.send( msg )

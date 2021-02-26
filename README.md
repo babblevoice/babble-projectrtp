@@ -125,3 +125,8 @@ srf.invite( ( req, res ) => {
 * Mix more than 2 channels (conference).
 * Support video (pass through)
 * Lots!
+
+# Refereces
+
+* An Offer/Answer Model with the Session Description Protocol (SDP) [RFC 3264](https://tools.ietf.org/html/rfc3264)
+* SDP: Session Description Protocol [RFC 4566](https://tools.ietf.org/html/rfc4566)
