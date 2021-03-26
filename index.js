@@ -788,11 +788,13 @@ class ProjectRTP {
 
   send( srv, msg ) {
 
-    let sock = srv.sock
-
     let encoded = JSON.stringify( msg )
-    sock.write( Buffer.from( [ 0x33, 0x00, 0x00, ( encoded.length >> 8 ) & 0xff, encoded.length & 0xff ] ) )
-    sock.write( encoded )
+    srv.sock.write( Buffer.concat( [
+          Buffer.from( [ 0x33, 0x00, 0x00, ( encoded.length >> 8 ) & 0xff, encoded.length & 0xff ] ),
+          Buffer.from( encoded, "utf8" )
+        ]
+      )
+    )
   }
 
   /*
