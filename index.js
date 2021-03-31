@@ -519,14 +519,12 @@ class projectrtpchannel {
     this.send( msg )
   }
 
-  record( filename ) {
-    let msg = {
-      "channel": "record",
-      "uuid": this.uuid,
-      "file": filename
-    }
+  record( options ) {
 
-    this.send( msg )
+    options.uuid = this.uuid
+    options.channel = "record"
+
+    this.send( options )
   }
 
   send( msg ) {

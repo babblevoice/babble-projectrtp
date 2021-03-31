@@ -56,6 +56,49 @@ Play a sound 'soup' to the other end. See [projectrtp](https://github.com/tinpot
   } )
 ```
 
+### Record
+
+Can take options as per projectrtp:
+file = <string> - filename to save as
+
+In seconds up to MA max size (5 seconds?), default is 1 second
+RMS power is calculated from each packet then averaged using a moving average filter.
+poweraverageduration = <int> moving average window to average power over
+
+must have started for this to kick in - if left out will just start
+startabovepower = <int>
+
+When to finish - if it falls below this amount
+finishbelowpower = <int >
+
+used in conjunction with finishbelowpower - used in conjusnction with power thresholds
+i.e. power below finishbelowpower before this number of mS has passed
+minduration = < int > mSeconds
+
+Must be above minduration and sets a limit on the size of recording
+maxduration = < int > mSeconds
+
+
+```javascript
+  ch.record( {
+    "file": "testfile.wav"
+  } )
+```
+
+Or a more complex setup where speech is required to pass over to a processor (like speech recognition).
+
+```javascript
+  ch.record( {
+    "file": "testfile.wav",
+    "startabovepower": 250,
+    "finishbelowpower": 200,
+    "minduration": 2000,
+    "maxduration": 15000,
+    "poweraverageduration": 1
+  } )
+```
+
+
 # Example
 
 Example with using drachtio. See separate instructions for starting an RTP server.
