@@ -250,8 +250,10 @@ class sdpgen {
   */
   addcodecs( codecs ) {
     let codecarr = codecs
-    if ( !Array.isArray( codecarr ) ) {
+    if ( !Array.isArray( codecarr ) && "string" === typeof codecs ) {
       codecarr = codecs.split( /[ ,]+/ )
+    } else {
+      codecarr = []
     }
 
     codecarr.forEach( codec => {
